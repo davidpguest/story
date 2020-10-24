@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>people</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />   
+		<meta charset="utf-8" /> 
+		<style type="text/css">
+			body { margin: 20px; text-align: center; font-family: 'Consolas', monospace; font-size: 14px; background: #333; color: #eee;   }
+			#controls, #terminal, #register, #version { margin: 20px auto; text-align: left; width: 90%; max-width: 400px; }
+			#controls { cursor: pointer; -webkit-user-select:none; color: #ff6; }
+			#button, #download { color: #9f3; }
+			#wordcount { color: #ff6; }
+			#register { color: #f9f; display: none; }
+			#version { color: #cef; }
+			#terminal { height: 300px; overflow: scroll; white-space: pre-wrap; }
+			#terminal::-webkit-scrollbar { display: none; }
+		</style>
+	</head>
+	<body>
+		<div id="controls"><span id="button">[start]</span> <span id="download">[download]</span> <span id="wordcount">[0]</words></div>
+		<pre><div id="terminal"></div></pre>
+		<div id="version">version i (22 October 2020)</div>
+		<div id="register"></div>
+		<script type="text/javascript">
+
+			var ms = ["Zeus", "Apollo", "Hermes", "Ares", "Hades", "Poseidon", "Dionysus"]
+			var fs = ["Demeter", "Aphrodite", "Artemis", "Hera", "Athena", "Hestia"];
+			var stories = [
+	["It was too late. The water was everywhere, cool and dark, washing across the entire world.", "The water was rising. It was getting difficult to do anything.", "Already, the bath was overflowing. Water was spreading across the floor, splashing against the walls.", "The bath was filling with water.", "The taps in the bathroom were still running.", "Somebody had turned on the taps in the bathroom."],
+	["I don't think I'll ever find OBJECT, said HERO, I'm sure of it.", "HERO breathed in and out slowly, and looked under the table. It must be somewhere, HE said.", "HERO began searching through the cupboards, and the drawers.", "It must be somewhere, said HERO.", "I can't find OBJECT, said HERO."]
+]
+			var objects = ["that silver sword", "the key", "my casket"];
+			var go = 0;
+			var para = 0;
+			var words = 0;
+			var output = "";
+			var people = [];
+			var current = "";
+			var hero = {name: "", sex: 0, obj: ""};
+			var story = [];
+			var terminal = document.getElementById("terminal");
+			var register = document.getElementById("register");
+			var wordcount = document.getElementById("wordcount");
+			var button = document.getElementById("button");
+			button.addEventListener('click', startButton);
+			var download = document.getElementById("download");
+			download.addEventListener('click', downloadText);
+
+			function startButton() {
+				var status = button.innerText;
+				if(status=="[start]") {
+					go = 1;
+					button.innerHTML = "[pause]";
+					act();
+				} else {
+					go = 0;
+					button.innerHTML = "[start]";
+				}
+			}
+
+			function countWords() {
+   				var s = terminal.innerText;
+    				s = s.replace(/(^\s*)|(\s*$)/gi,"");
+    				s = s.replace(/[ ]{2,}/gi," ");
+    				s = s.replace(/\n/g,' ');
+				var wc = s.split(' ').length;
+    				wordcount.innerHTML = "[" + wc + "]";
+				words = wc;
+			}
+
+			function downloadText() {
+				var s = terminal.innerText;
+				var a = document.createElement('a');
+				var f = new Blob([s], {type: "text/plain"});
+				a.href= URL.createObjectURL(f);
+  				a.download = "story.txt";
+  				a.click();
+				URL.revokeObjectURL(a.href);
+			}
+
+			function roll() {
+				var present = "";
+				for(po of people) {
+					present += po.name + ", "
+				}
+				if(present=="") {
+					present = ", ";
+				}
+				present = present.substring(0,present.length-2);
+				register.innerHTML = "[" + present + "] [" + current + "]";
+			}
+
+			function present(s="all") {
+				var p = [];
+				for(po of people) {
+					if(s=="awake" && po.status==1) {
+						p.push(po.name);
+					} else if(s=="asleep" && po.status==0) {
+						p.push(po.name);
+					} else if(s=="all") {
+						p.push(po.name);
+					}
+				}
+				return p;
+			}
+
+			function randomElement(a) {
+				var i = Math.floor(Math.random() * a.length);
+				return a[i];
+			}
+
+			function sex(n) {
+				var s = "";
+				var h = ["his", "her"];
+				for(p of people) {
+					if(p.name==n) {
+						s = h[p.sex];
+					}
+				}
+				return s;
+			}
+
+			function awake(n) {
+				var a = false;
+				for(p of people) {
+					if(p.name==n && p.status==1) {
+						a=true;
+					}
+				}
+				return a;
+			}
+
+			function arrive() {
+				var mf = ms.length + fs.length;
+				var pres = present();
+				if(mf > 0 && pres.length < 3) {
+					var p = Math.floor(Math.random() * mf);
+					if(p < ms.length) {
+						var n = ms[p];
+						var s = 0;
+						ms.splice(p,1);
+					} else {
+						var p = p - ms.length;
+						var n = fs[p];
+						var s = 1;
+						fs.splice(p,1);
+					}
+					people.push({name: n, status: 1, sex: s});
+					if(hero.name=="") {
+						hero.name = n;
+						hero.sex = s;
+						hero.obj = randomElement(objects);
+					}
+					current = n;
+					var a = ["arrived", "appeared in the doorway", "came in", "opened the door and came in", "entered", "returned", "was back", "turned up", "came back inside"];
+					output = n + " " + randomElement(a) + ". ";
+					roll();
+				} else {
+					depart();
+				}
+			}
+
+			function depart() {
+				var p = Math.floor(Math.random() * people.length);
+				var n = people[p].name;
+				var s = people[p].sex;
+				var pn = "";
+				if(current==n) {
+					if(sex(n)=="his") { pn="He"; } else { pn="She"; }
+				} else {
+					pn = n;
+					current = n;
+				}
+				if(people[p].status==0) {
+					var de = ["dragons", "treasure", "insects", "darkness", "indistinct forms", "eyes in walls", "entitlement", "houses filled with earth", "fissures", "formless shapes", "raisin cake", "abandonment", "labyrinths", "castle towers"];
+					var d2 = "";
+					for(var i=0;i<2;i++) {
+						var dn = Math.floor(Math.random() * de.length);
+						d2 += de[dn] + " and ";
+						de.splice(dn,1);
+					}
+					d2 = d2.substring(0,d2.length-5);
+					var d3 = randomElement(de) + ", " + d2;				
+					var d = ["distant lands", "long summer days", "ancient mistakes", "empires buried in sand", d2, d3, "better days and simpler times", "mountains covered with thick snow", "a lake of glass", "streets with empty doorways", "a fortress with high walls"];
+					output = pn + " dreamed of " + randomElement(d) + ". ";
+				} else {
+					people.splice(p,1);
+					if(s==0) {
+						ms.push(n);
+					} else {
+						fs.push(n);
+					}
+					if(current==n) {
+						current="";
+					}
+					var l = ["left", "went to get more cigarettes", "went to buy wine", "went outside", "went out", "decided to go away for a while", "went away again", "decided to leave", "opened the door and slipped out", "went to get more supplies", "went in search of more beer", "decided to go outside", "got up and left", "went in search of something else, anything else"];
+					output = pn + " " + randomElement(l) + ". ";
+					roll();
+				}
+			}
+
+			function exercise() {
+				var p = Math.floor(Math.random() * people.length);
+				var n = people[p].name;
+				if(current==n) {
+					if(sex(n)=="his") { n = "He"; } else { n = "She"; }
+				} else {
+					current = n;
+				}
+				if(people[p].status==0) {
+					var a = ["seemed restless", "turned over", "said something, something indistinct", "was restless", "appeared to be dreaming", "appeared disturbed, restless"];
+					output = n + " " + randomElement(a) + ". ";
+				} else {
+					var a = ["paced in circles", "walked to and fro", "tried balancing on one foot", "sat quietly", "stretched", "did some handstands", "looked around for some cigarettes", "smoked a cigarette", "had a drink", "made some coffee", "wanted to be far away, anywhere else", "tried to work the telephone", "sat down", "stood up", "searched the clay pots for discarded coins", "began looking through the cupboards", "started opening all the drawers", "drank a glass of wine", "downed a cup of coffee", "began to feel drowsy"];
+					output = n + " " + randomElement(a) + ". ";
+				}
+			}
+
+			function food() {
+				var p = present("awake");
+				if(p.length > 0) {
+					var n = randomElement(p);
+					var pn = sex(n);
+					if(current==n) {
+						if(pn=="his") { n = "He"; } else { n = "She"; }
+					} else {
+						current = n;
+					}		
+					var f = ["an orange", "some cake", "a slice of toast", "some biscuits", "a bowl of oats", "a piece of chocolate", "the rest of the fish and chips", "some cheese and slices of apple", "a thin slice of chicken", "one of those bitter little fruits", "one of the apples", "a few raspberries"];
+					var a = ["ate", "consumed", "considered eating", "ate", "ate", "chewed on", "began eating", "wanted to eat", "thought about eating", "began to consume", "had a sudden craving for"];
+					output = n + " " + randomElement(a) + " " + randomElement(f) + ". ";
+				} else {
+					status();
+				}
+
+			}
+
+			function drink() {
+				var p = present("awake");
+				if(p.length > 0) {
+					var n = randomElement(p);
+					if(current==n) {
+						if(sex(n)=="his") { n = "He"; } else { n = "She"; }
+					} else {
+						current = n;
+					}		
+					var f = ["a glass of wine", "another glass of wine", "a draught of beer", "another beer", "a cup of coffee"];
+					var a = ["swallowed", "wanted", "had the urge to drink", "needed", "was in the mood for", "thought of drinking", "drank", "downed", "drank"];
+					output = n + " " + randomElement(a) + " " + randomElement(f) + ". ";
+				} else {
+					status();
+				}
+
+			}
+
+			function status() {
+				var p = Math.floor(Math.random() * people.length);
+				var n = people[p];
+				var pn = n.name;
+				var h = sex(pn);
+				if(current==n.name) {
+					if(h=="his") { pn = "He"; } else { pn = "She"; }
+				} else {
+					current = n.name;
+				}	
+				if(n.status==0) {
+					people[p].status = 1;
+					var o = " opened " + h + " eyes";
+					var r = " stirred and rubbed " + h + " eyes";
+					var s = [" woke up", " stirred", o, r, " got up again", " stirred and stood up", " woke suddenly"];
+					output = pn + randomElement(s) + ". ";
+				} else {
+					people[p].status = 0;
+					var o = " closed " + h + " eyes";
+					var q = o + " and sank into sleep";
+					var r = o + " and fell asleep";
+					var s = [" went to sleep", " fell asleep", o, r, " soon fell into a deep sleep", " drifted off"];
+					output = pn + randomElement(s) + ". ";
+				}
+			}
+
+			function interact() {
+				var p = present("awake");
+				var i = ["looked at", "frowned at", "stared at", "looked over towards"];
+				if(p.length > 1) {
+					var n = Math.floor(Math.random() * p.length);
+					var p1 = p[n];
+					p.splice(n,1);
+					var n = Math.floor(Math.random() * p.length);
+					var p2 = p[n];
+					output = p1 + " " + randomElement(i) + " " + p2 + ". ";
+					current = p1;
+				} 
+			}
+
+			function express() {
+				var p = present("awake");
+				var e = ["smiled", "grimaced", "looked confused", "felt strange", "felt tense", "looked up", "looked away", "sighed", "grinned", "laughed", "groaned", "gulped", "wasn't looking forward to this"];
+				if(p.length > 1) {
+					var pn = randomElement(p);
+					output = pn + " " + randomElement(e) + ". ";
+					current = pn;
+				} 
+			}
+
+			function weather() {
+				var w = ["The wind was howling", "Rain was battering the roof", "There were dark clouds on the horizon", "Darkness covered the sky", "There was a storm coming", "The sky had patches of light and dark", "The rain had stopped", "Nobody knew when the clouds would pass over", "Rain was hammering on the window", "The window was filled with light", "Outside, the winds were gathering strength"];
+				output = randomElement(w) + ". ";
+			}
+
+			function environment() {
+				var e = ["Time passed", "There was only the sound of the clocks ticking", "Somewhere, a bell began to ring", "The air seemed heavy", "Shadows moved across the floor", "Shadows passed over the floor", "Somewhere far off, a trumpet sounded", "Somewhere, the pipes were rattling", "The floorboards were creaking", "Somewhere, somebody was blowing a whistle", "Somewhere, somebody dropped a glass bottle", "There was only the directionless sound of static"];
+				output = randomElement(e) + ". ";
+			}
+
+
+			function philosophy() {
+				var p = present("awake");
+				var w = ["So it goes", "Shit happens", "Everyone is alone", "Some people never learn", "This makes no sense", "I don't want to know", "I must be dreaming", "I feel like I'm going crazy", "Every day is the same", "Maybe the stoics were right all along", "I don't like this", "You never cross the same stream twice", "There must be some alternative to this", "This can't go on", "I think everything is going to be okay", "This will soon be over", "This doesn't augur well", "The portents are bad", "I don't like the look of the prophecies"];
+				if(p.length > 1) {
+					var pn = randomElement(p);
+					var s = "said " + pn;
+					if(current==pn) { if(sex(pn)=="his") { s = "he said"; } else { s = "she said"; }
+					} else {
+						current = pn;
+					}
+					output = randomElement(w) + ", " + s + ". ";
+				} else {
+					status();
+				}
+			}
+
+			function they() {
+				var p = present("awake");
+				if(p.length>1) {
+					var t = ["were silent", "looked at each other", "considered matters", "were all thinking about what to do next", "were all considering the best course of action", "thought about things"];
+					outlook = "They " + randomElement(t) + ". ";
+				}
+			}
+
+			function mood() {
+				var pn = sex(current);
+				var ob = "She";
+				var sf = "herself";
+				if(pn=="his") { ob = "He"; sf = "himself"; }
+				if(awake(current)) {
+					var s = ["anger", "annoyance", "confusion", "dissociation", "wakefulness", "determination"];
+					var m = ["scratched " + pn + " nose", "folded " + pn + " arms", "looked away", "felt nauseous", "checked " + pn + " appearance in the mirror", "had a sudden memory of childhood", "took off " + pn + " shoes", "took off " + pn + " coat", "put on another jumper", "tied on a woollen scarf", "wondered", "looked out of the window", "had a sense of " + randomElement(s)];
+					output = ob + " " + randomElement(m) + ". "; 
+				}
+			}
+
+			function frustration() {
+				var pn = sex(current);
+				var ob = "She";
+				var sf = "herself";
+				if(pn=="his") { ob = "He"; sf = "himself"; }
+				if(awake(current)) { 
+					var f = [ob + " tried to read the newspaper but the words were blurred and indistinct", ob + " walked to the window and pressed " + pn + " hand against the glass", ob + " wanted to say something but had no idea what", ob + " felt bitter, in some vague sense", ob + " knew something was wrong", ob + " had a bad feeling about the whole thing", ob + " didn't want this. It didn't seem worth all " + pn + " sacrifices", ob + " seemed to be losing " + pn + " edge", ob + " was losing perspective", ob + " needed to be more objective", ob + " wanted better than this, wanted more", ob + " looked older somehow", ob + " looked older, more drawn", ob + " looked pale and " + pn + " eyes were glassy"];
+					output = randomElement(f) + ". ";
+				}
+			}
+
+			function event() {
+				var pre = ["Outside,", "Somewhere,", "Somewhere far off,", "Beyond the windows,", "After a short time,", "Presently,", "Soon,", "After a while,", "Without warning,", "Before long,", "Somehow,", "For some reason,", "Strangely,", "Eventually,", "At last,", "Finally,", "At length,"];
+				var atn = ["the light felt like it was on the threshold of change", "it seemed the shadows might consume everything", "the hours seemed to lengthen and change", "the air seemed to lighten", "the sense of dissociation intensified", "the shadows shifted and thickened"];
+				output = randomElement(pre) + " " + randomElement(atn) + ". ";
+			}
+
+			function lyric() {
+				var ad1 = ["dark", "dense", "heavy", "thick",  "rich", "thick and heavy", "frosty", "turbid", "difficult"];
+				var ad2 = ["luminous", "vibrant", "thin", "fragile", "tremulous", "fleeting", "clear", "pristine", "transparent", "glassy", "pallid"];
+				var ly = ["The summer was ending but the days were still " + randomElement(ad1) , "Winter was approaching and time had taken on this " + randomElement(ad2) + " quality", "The nights were " + randomElement(ad1) + ", while the mornings had this strange " + randomElement(ad2) + " aspect", "The days now were so " + randomElement(ad1), "Every day now was " + randomElement(ad1) + ", more and more", "Winter was here, with its " + randomElement(ad1) + " conditions", "The day wore on with all its " + randomElement(ad1) + " properties"];
+				output = randomElement(ly) + ". "; 
+			}
+
+			function misgiving() {
+				var pn = sex(current);
+				var ob = "She";
+				var lc = "she";
+				if(pn=="his") { ob = "He"; lc = "he"; }
+				if(awake(current)) { 
+					var m = [ob + " felt " + lc + " had no memory of anything", ob + " was unsure about going further", ob + " said nothing", ob + " stared at the floor and said nothing", ob + " swallowed, said nothing", ob + " remembered where " + lc + " was"];
+					output = randomElement(m) + ". ";
+				}
+
+			}
+
+			function posture() {
+				var pn = sex(current);
+				var ob = "She";
+				var lc = "she";
+				var uc = "Her";
+				if(pn=="his") { ob = "He"; lc = "he"; uc = "His"; }
+				if(awake(current) && current !="") { 
+					var m = ["Looking at " + pn + " hands, " + lc + " murmured quietly", ob + " folded " + pn + " arms", uc + " limbs felt tired and sore", uc + " limbs were heavy", ob + " felt the energy draining from " + pn + " body", ob + " stretched " + pn + " arms", ob + " pressed " + pn + " hands together"];
+					output = randomElement(m) + ". ";
+				}
+
+			}
+
+			function prop() {
+				var pn = sex(current);
+				var ob = "She";
+				var lc = "she";
+				var uc = "Her";
+				if(pn=="his") { ob = "He"; lc = "he"; uc = "His"; }
+				if(awake(current) && current !="") { 
+					var m = [ob + " drew back the curtains", ob + " turned on the radio and began to dial through the static", ob + " flipped the switches on the television, staring into the blank, dead screen", ob + " opened the door, closed it again"];
+					output = randomElement(m) + ". ";
+				}
+			}
+
+			function episode() {
+				if(story.length > 0) {
+					ep = story.pop();
+					if(ep.includes("HERO")) {
+						var pr = present("awake");
+						if(pr.includes(hero.name)) {
+							var he = "he";
+							if(hero.sex==1) { he = "she"; }
+							ep = ep.replace("HERO", hero.name);
+							ep = ep.replace("OBJECT", hero.obj);
+							ep = ep.replace("HE", he);
+							output = ep + " ";
+							current = hero.name;
+						} else {
+							story.push(ep);
+						}
+					} else {
+						output = ep + " ";
+					}
+				} else {
+					newStory();
+				}
+			}
+
+			function newStory() {
+				if(stories.length > 0) {
+					story = stories.pop();
+				} else {
+					go = 0;
+					wrap();
+				}
+			}
+
+			function wrap() {
+				button.innerHTML = "[-end-]";
+			}
+
+			function act() {
+				if(go==1) {
+					var h = [arrive, depart, status, exercise, food, express, interact, weather, philosophy, drink, environment, they, mood, event, frustration, lyric, misgiving, posture, prop, episode, episode];
+					//var h = [arrive, episode];
+					r = Math.floor(Math.random() * h.length);
+					if(people.length<1) {
+						r=0;
+					}
+					h[r]();
+					print();
+				} 
+			}
+			
+			function print() {
+				if(output=="") {
+					roll();
+					setTimeout(act, 40);
+				} else {
+					terminal.scrollTop = terminal.scrollHeight;
+					terminal.innerHTML += output.substring(0,1);
+					output = output.substring(1);
+					countWords();
+					var li = 50 + Math.floor(Math.random() * 50);
+					if(words-para > li) { 
+						output += "\n\n";
+						para = words;
+					}
+					setTimeout(print, 40);
+				} 
+			}
+
+		</script>
+	</body>
+</html>
